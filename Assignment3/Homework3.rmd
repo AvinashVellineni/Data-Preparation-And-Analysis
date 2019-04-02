@@ -1,0 +1,603 @@
+---
+title: "CS571 section 01"
+output: html_notebook
+author: "Avinash Vellineni - A20406657"
+---
+
+## Problem 2.1
+
+### Yacht Hydrodynamics Dataset
+
+#### Linear model:
+
+```{r}
+rm(list=ls())
+library(glmnet)
+library(caret)
+library(plyr)
+```
+
+```{r}
+setwd("E:/IIT CHICAGO STUDIES/IIT Chicago semester 2/Data Prep and Analysis/Assignment/Assignment3")
+url_yacht_hd <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00243/yacht_hydrodynamics.data"
+df_yacht_hd <- read.csv(url_yacht_hd,sep = "",header = F)
+head(df_yacht_hd)
+```
+
+```{r}
+names(df_yacht_hd) <- c("Longitudinal_Position","Prismatic_Coefficient","LD_Ratio","BD_Ratio","LB_Ratio","Froude_number","Residuary_Resistance")
+str(df_yacht_hd)
+```
+
+```{r}
+set.seed(1)
+index_y_hd <- createDataPartition(df_yacht_hd$Residuary_Resistance, p = 0.8,list = F)
+train_y_hd <- df_yacht_hd[index_y_hd,]
+test_y_hd <- df_yacht_hd[-index_y_hd,]
+```
+
+
+```{r}
+linear_model_y_hd <- lm(Residuary_Resistance~.,data=train_y_hd)
+summary(linear_model_y_hd)
+summary_lm_y_hd<-summary(linear_model_y_hd)
+```
+
+```{r}
+anova(linear_model_y_hd)
+```
+
+```{r}
+names(summary_lm_y_hd)
+```
+
+```{r}
+cat("The R squared value of the model using train data is: ",summary_lm_y_hd$r.squared)
+```
+
+```{r}
+
+cat("The adjusted R squared value of the model using train data is: ",summary_lm_y_hd$adj.r.squared)
+```
+
+```{r}
+
+cat("mean of residual square error using train dataset is: ",mean(summary_lm_y_hd$residuals^2))
+```
+
+```{r}
+cat("Root mean of residual square error using train dataset is: ",sqrt(mean(summary_lm_y_hd$residuals^2)))
+```
+
+```{r}
+
+cat("sum of residual square error using train dataset is: ",sum(summary_lm_y_hd$residuals^2))
+```
+
+```{r}
+
+cat("Residual standard error using train dataset is: ",sqrt(sum(summary_lm_y_hd$residuals^2)/241))
+```
+
+```{r}
+cat("F-statistic value using the train dataset with 6 predictors and 241 degrees of freedom is: ",summary_lm_y_hd$fstatistic)
+```
+
+#### Prediction results of out of sample observations using the linear model fit:
+
+```{r}
+plot(linear_model_y_hd,1)
+predict_values_yhd <- predict(linear_model_y_hd,test_y_hd, interval="prediction")
+```
+
+```{r}
+head(predict_values_yhd[,1])
+```
+
+```{r}
+head(test_y_hd$Residuary_Resistance)
+```
+
+```{r}
+residuals_yhd <- test_y_hd$Residuary_Resistance - predict_values_yhd[,1]
+RSS_v <-sum(residuals_yhd^2)
+TSS_v <-sum((test_y_hd$Residuary_Resistance-mean(test_y_hd$Residuary_Resistance))^2)
+```
+
+```{r}
+cat("Sum of residual square error of the test dataset is(RSS): ",sum(residuals_yhd^2))
+```
+
+```{r}
+cat("Mean of residual square error of the test dataset is: ",mean(residuals_yhd^2))
+```
+
+```{r}
+cat("Root mean of residual square error of the test dataset is: ",sqrt(mean(residuals_yhd^2)))
+```
+
+```{r}
+cat("Total sum of residual square error of the test dataset is(TSS): ",sum((test_y_hd$Residuary_Resistance-mean(test_y_hd$Residuary_Resistance))^2))
+```
+
+```{r}
+cat("The R squared value of the test data is: ",(1-(RSS_v/TSS_v)))
+```
+
+```{r}
+cat("Residual standard error of the test data is: ",sqrt(RSS_v/53))
+```
+
+#### Bootstrap Model:
+
+```{r}
+fit_ctrl_yhd <- trainControl(method = "boot", number = 1000)
+```
+
+```{r}
+fit_tr <- train(Residuary_Resistance~.,data=train_y_hd,trControl=fit_ctrl_yhd,method="glmboost")
+fit_tr
+```
+
+```{r}
+names(fit_tr)
+```
+
+```{r}
+cat("Training RMSE Resampling results of bootstrap Linear Model: ",fit_tr$results$RMSE)
+```
+
+```{r}
+cat("Training Rsquared Resampling results of bootstrap Linear Model: ",fit_tr$results$Rsquared)
+```
+
+```{r}
+histogram(fit_tr$results$RMSE,xlab="RMSE")
+```
+
+```{r}
+cat("Mean RMSE for the model fit: ",mean(fit_tr$results$RMSE))
+```
+
+```{r}
+cat("Mean Rsquared for the model fit: ",mean(fit_tr$results$Rsquared))
+```
+
+#### Model Comparison:
+
+From the above observations we can observe that the Rsquared value and RMSE of the train data using linear model is 0.664 and 9.0298.On the other hand, The Rsquared and RMSE of the train data using Bootstrap model is 0.6535 and 9.33.We can conclude that Linear model did slightly better than the bootstrap model on the train dataset as it has higher Rsquared and low RMSE than the bootstrap model.To note that both the model values are similar with slight variations. 
+
+```{r}
+Activity_test_yhd <- predict(fit_tr, newdata = test_y_hd)
+head(test_y_hd$Residuary_Resistance)
+```
+
+```{r}
+head(Activity_test_yhd)
+res_yhd_bs <- (Activity_test_yhd-test_y_hd$Residuary_Resistance)
+```
+
+```{r}
+mse_yhd_bs <- mean(res_yhd_bs^2)
+cat("MSE of the test data using bootstrap model: ",mse_yhd_bs)
+```
+
+```{r}
+cat("RMSE of the test data using bootstrap model: ",sqrt(mse_yhd_bs))
+```
+
+```{r}
+RSS_v_boot <-sum(res_yhd_bs^2)
+TSS_v_boot <-sum((test_y_hd$Residuary_Resistance-mean(test_y_hd$Residuary_Resistance))^2)
+cat("Rsquared value of the test data using bootstrap model: ",(1-(RSS_v_boot/TSS_v_boot)))
+```
+
+From the above observations we can observe that the Rsquared value and RMSE of the test data(out of sample observations) using linear model is 0.602 and 8.218.On the other hand, The Rsquared and RMSE of the test data using Bootstrap model is 0.6122 and 8.11.We can conclude that bootstrap model did slightly better than the linear model on the test dataset as it has higher Rsquared and low RMSE than the linear model.
+
+## Problem 2.2
+
+### German Credit Dataset
+
+#### Logistic Model:
+
+```{r}
+url_German_credit <- "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data-numeric"
+data_german_credit <- read.csv(url_German_credit,header = F,sep="")
+```
+
+```{r}
+str(data_german_credit)
+set.seed(100)
+index_german_credit <- createDataPartition(data_german_credit$V25, p = 0.8,list = F)
+train_german_credit <- data_german_credit[index_german_credit,]
+test_german_credit <- data_german_credit[-index_german_credit,]
+```
+
+```{r}
+logistic_german_credit <- glm(V25~V1+V2+V3+V5+V11+V15+V16+V17+V18+V19,data = train_german_credit)
+summary(logistic_german_credit)
+```
+
+```{r}
+names(logistic_german_credit)
+```
+
+```{r}
+RSquared_german_ct <- 1-(logistic_german_credit$deviance/logistic_german_credit$null.deviance)
+residuals_german_credit <- logistic_german_credit$residuals
+MSE_german_credit <- mean(residuals_german_credit^2)
+RMSE_german_credit <- sqrt(MSE_german_credit)
+```
+
+```{r}
+cat("The R squared value of the model using train data is: ",RSquared_german_ct)
+```
+
+```{r}
+cat("Mean of residual square error using train dataset is: ",MSE_german_credit)
+```
+
+```{r}
+cat("Root Mean of residual square error using train dataset is: ",sqrt(MSE_german_credit))
+```
+
+```{r}
+cat("Sum of residual square error using train dataset is: ",sum(residuals_german_credit^2))
+```
+
+```{r}
+cat("Residual standard error using train dataset is: ",sqrt(sum(residuals_german_credit^2)/logistic_german_credit$df.residual))
+```
+
+#### Prediction on the out of sample observation
+
+```{r}
+predict_german_ct_tt <- predict(logistic_german_credit,test_german_credit, interval="prediction")
+residual_gc_test_lin <- predict_german_ct_tt - test_german_credit$V25
+MSE_gc_test_lin <- mean(residual_gc_test_lin^2)
+RMSE_gc_test_lin <- sqrt(MSE_gc_test_lin)
+RSS_gc_test_lin <- sum(residual_gc_test_lin^2)
+TSS_gc_test_lin <- sum((test_german_credit$V25-mean(test_german_credit$V25))^2)
+```
+
+```{r}
+cat("The R squared value of the model using test data is: ",1-(RSS_gc_test_lin/TSS_gc_test_lin))
+```
+
+```{r}
+cat("Mean of residual square error using test dataset is: ",MSE_gc_test_lin)
+```
+
+```{r}
+cat("Root Mean of residual square error using test dataset is: ",RMSE_gc_test_lin)
+```
+
+```{r}
+cat("Sum of residual square error using test dataset is: ",RSS_gc_test_lin)
+```
+
+```{r}
+cat("Residual standard error using test dataset is: ",sqrt(RSS_gc_test_lin/189))
+```
+
+#### K-fold(10) cross validation:
+
+```{r}
+K_10_german_ct <- trainControl(method="cv", number=10)
+Model_K_10_gt <- train(V25~V1+V2+V3+V5+V11+V15+V16+V17+V18+V19, data= train_german_credit, trControl=K_10_german_ct, method="glm")
+Model_K_10_gt
+```
+
+```{r}
+names(Model_K_10_gt)
+```
+
+```{r}
+cat("Mean RMSE for the K-fold(10) cross validation: ",mean(Model_K_10_gt$resample$RMSE))
+```
+
+```{r}
+cat("Mean Rsquare for the K-fold(10) cross validation: ",mean(Model_K_10_gt$resample$Rsquared))
+```
+
+```{r}
+pct_k10_tst <- predict(Model_K_10_gt, newdata = test_german_credit)
+res_k10_tst <- pct_k10_tst - test_german_credit$V25
+RSS_K10_tst <- sum(res_k10_tst^2)
+TSS_K10_tst <- sum((test_german_credit$V25 - mean(test_german_credit$V25))^2)
+```
+
+```{r}
+cat("Mean of residual square error of the K10 cv model using test dataset is: ",mean(res_k10_tst^2))
+```
+
+```{r}
+cat("Root Mean of residual square error of the K10 cv model using test dataset is: ",sqrt(mean(res_k10_tst^2)))
+```
+
+```{r}
+cat("Sum of residual square error using of the K10 cv model test dataset is: ",sum(res_k10_tst^2))
+```
+
+```{r}
+cat("The R squared value of the K10 cv model using testset data is: ",1-(RSS_K10_tst/TSS_K10_tst))
+```
+
+RMSE and R Square value using the logistic model on the train dataset is 0.4099 and 0.231.RMSE and R Square value using the K10 CV model on train dataset is 0.414 and 0.218.RMSE and R Square value using the logistic model on the test dataset is 0.374 and 0.158.RMSE and R Square value using the K10 CV model on test dataset is 0.374 and 0.1588.From the results obtained we can say that Both RMSE and R Square value on the out of sample observations are same so both models did well on the dataset.
+
+
+## Problem 2.3
+
+### Mtcars Dataset
+
+#### Linear Model:
+
+```{r}
+data(mtcars)
+head(mtcars)
+```
+
+```{r}
+str(mtcars)
+```
+
+```{r}
+set.seed(100)
+index_mtcars <- createDataPartition(mtcars$mpg, p = 0.8,list = F)
+train_mtcars<- mtcars[index_mtcars,]
+test_mtcars <- mtcars[-index_mtcars,]
+mtcars$am <- factor(mtcars$am)
+```
+
+```{r}
+lm_mtcars <- lm(mpg~.,data=train_mtcars)
+summary(lm_mtcars)
+summary_mtcars <-summary(lm_mtcars)
+```
+
+```{r}
+cat("The R squared value of the model using train data is: ",summary_mtcars$r.squared)
+```
+
+```{r}
+
+cat("The adjusted R squared value of the model using train data is: ",summary_mtcars$adj.r.squared)
+```
+
+```{r}
+
+cat("Mean of residual square error using train dataset is: ",mean(summary_mtcars$residuals^2))
+```
+
+```{r}
+
+cat("Sum of residual square error using train dataset is: ",sum(summary_mtcars$residuals^2))
+```
+
+```{r}
+
+cat("Residual standard error using train dataset is: ",sqrt(sum(summary_mtcars$residuals^2)/17))
+```
+
+```{r}
+cat("F-statistic value using the train dataset with 10 predictors and 17 degrees of freedom is: ",summary_mtcars$fstatistic)
+```
+
+Based on the summary of the linear model using mtcars dataset we can observe that Predictors "wt" and "hp" have high T-value(away from 0) corresponding to other predictors.
+
+```{r}
+names(lm_mtcars)
+```
+
+```{r}
+cat("Associated coefficient value for the feature wt is: ",lm_mtcars$coefficients[6])
+```
+
+```{r}
+cat("Associated coefficient value for the feature hp is: ",lm_mtcars$coefficients[4])
+```
+
+#### Prediction on the out of sample observations
+
+```{r}
+plot(lm_mtcars,1)
+predicted_values_linear_mtcars <- predict(lm_mtcars,test_mtcars, interval="prediction")
+```
+
+```{r}
+predicted_values_linear_mtcars
+```
+
+```{r}
+test_mtcars$mpg
+```
+
+```{r}
+residuals_linear_mtcars <- test_mtcars$mpg - predicted_values_linear_mtcars[,1]
+cat("Mean of residual square error of the test dataset using linear model is: ",mean(residuals_linear_mtcars^2))
+```
+
+#### Ridge Regression:
+
+```{r}
+grid_ridge=10^seq(10,-2,length=100)
+x_ridge=model.matrix(mpg~.,mtcars)[,-1]
+y_ridge=mtcars$mpg
+ridge_mtcars=glmnet(x_ridge[index_mtcars,],y_ridge[index_mtcars],alpha=0,lambda=grid_ridge,thresh=1e-12)
+plot(ridge_mtcars)
+```
+
+```{r}
+ridge_mtcars_min=cv.glmnet(x_ridge[index_mtcars,],y_ridge[index_mtcars],alpha=0,parallel=TRUE)
+plot(ridge_mtcars_min)
+```
+
+```{r}
+names(ridge_mtcars_min)
+```
+
+```{r}
+cat("The minimum value obtained for lambda is: ",ridge_mtcars_min$lambda.min)
+```
+
+```{r}
+ridge_mc_predict=predict(ridge_mtcars,s=ridge_mtcars_min$lambda.min,newx=x_ridge[-index_mtcars,])
+ridge_mc_predict
+```
+
+```{r}
+test_mtcars[,1]
+```
+
+```{r}
+cat("Out of sample test MSE using ridge regression is : ",mean((ridge_mc_predict-test_mtcars[,1])^2))
+```
+
+```{r}
+out_ridge=glmnet(x_ridge,y_ridge,alpha=0)
+redge.coef=predict(out_ridge,type="coefficients",s=ridge_mtcars_min$lambda.min)
+redge.coef
+```
+
+```{r}
+lm_mtcars$coefficients
+```
+
+MSE of the test data using the reidge regression model is 8.49 and the MSE of the test data using linear model is 13.259. From this result we can say that the ridge regression model performed better than Linear model since it has low MSE.The coefficients obtained using Ridge Regression is different to Coefficients obtained from the Linear Regression model but ridge regression model did well on out of sample observations than the linear model.Ridge Regression performed shrinkage as the coefficients are close to zero.
+
+
+## Problem 2.4
+
+### Swiss Dataset
+
+#### Linear Model:
+
+```{r}
+data("swiss")
+head(swiss)
+```
+
+
+
+```{r}
+str(swiss)
+```
+
+```{r}
+set.seed(1)
+index_swiss <- createDataPartition(swiss$Fertility, p = 0.8,list = F)
+train_swiss <- swiss[index_swiss,]
+test_swiss <- swiss[-index_swiss,]
+lm_swiss <- lm(Fertility~.,data=train_swiss)
+summary(lm_swiss)
+summary_swiss <-summary(lm_swiss)
+```
+
+```{r}
+cat("The R squared value of the model using train data is: ",summary_swiss$r.squared)
+```
+
+```{r}
+cat("The adjusted R squared value of the model using train data is: ",summary_swiss$adj.r.squared)
+```
+
+```{r}
+cat("Mean of residual square error using train dataset is: ",mean(summary_swiss$residuals^2))
+```
+
+```{r}
+cat("Sum of residual square error using train dataset is: ",sum(summary_swiss$residuals^2))
+```
+
+```{r}
+cat("Residual standard error using train dataset is: ",sqrt(sum(summary_swiss$residuals^2)/33))
+```
+
+```{r}
+cat("F-statistic value using the train dataset with 5 predictors and 33 degrees of freedom is: ",summary_swiss$fstatistic)
+```
+
+Based on the summary of the linear model using swiss dataset we can observe that Predictors Education,Catholic and Infant.Mortality have high T-value(away from 0) corresponding to other predictors.
+
+```{r}
+names(lm_swiss)
+```
+
+```{r}
+cat("Associated coefficient value for the feature Education is: ",lm_swiss$coefficients[4])
+```
+
+```{r}
+cat("Associated coefficient value for the feature Catholic is: ",lm_swiss$coefficients[5])
+```
+
+```{r}
+cat("Associated coefficient value for the feature Infant.Mortality is: ",lm_swiss$coefficients[6])
+```
+
+#### Prediction on the out of sample observations
+
+```{r}
+plot(lm_swiss,1)
+predicted_values_linear <- predict(lm_swiss,test_swiss, interval="prediction")
+```
+
+```{r}
+predicted_values_linear
+```
+
+```{r}
+test_swiss$Fertility
+```
+
+```{r}
+residuals_linear <- test_swiss$Fertility - predicted_values_linear[,1]
+cat("Mean of residual square error of the test dataset using linear model is: ",mean(residuals_linear^2))
+
+```
+
+```{r}
+grid=10^seq(10,-2,length=100)
+x=model.matrix(Fertility~.,swiss)[,-1]
+y=swiss$Fertility
+lasso_swiss=glmnet(x[index_swiss,],y[index_swiss],alpha=1,lambda=grid)
+plot(lasso_swiss)
+```
+
+```{r}
+lasso_swiss_min=cv.glmnet(x[index_swiss,],y[index_swiss],alpha=1,parallel=TRUE)
+plot(lasso_swiss_min)
+```
+
+```{r}
+names(lasso_swiss_min)
+```
+
+```{r}
+cat("The minimum value obtained for lambda is: ",lasso_swiss_min$lambda.min)
+```
+
+```{r}
+lasso_predict=predict(lasso_swiss,s=lasso_swiss_min$lambda.min,newx=x[-index_swiss,])
+lasso_predict
+```
+
+```{r}
+test_swiss[,1]
+```
+
+```{r}
+cat("Out of sample test MSE using Lasso regression is : ",mean((lasso_predict-test_swiss[,1])^2))
+```
+
+```{r}
+out=glmnet(x,y,alpha=1,lambda=grid)
+lasso.coef=predict(out,type="coefficients",s=lasso_swiss_min$lambda.min)[1:6,]
+lasso.coef
+```
+```{r}
+lm_swiss$coefficients
+```
+
+MSE of the linear model on the out of sample observations is 36.97 while the MSE of the out of sample observations using the Lasso regression model is 42.46. Linear model did slightly better than the Lasso regression model as it has low MSE. The coefficients of the Lasso regression model looks slightly close to the coefficients obtained using the Linear model with slight deviations.Lasso regression performed both variable selection and shrinkage as the coefficient values are close to zero and coefficients are close to the coefficients obtained from linear model.
+

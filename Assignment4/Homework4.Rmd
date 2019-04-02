@@ -1,0 +1,218 @@
+---
+title: "DPA Assignment4"
+output: html_notebook
+author: "Avinash Vellineni"
+---
+
+## Problem 2.1
+
+### Principle Component Analysis:
+
+```{r}
+rm(list = ls())
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(fpc)
+library(psych)
+library(dplyr)
+```
+
+
+```{r}
+url_wine <- "https://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data"
+wine_df <- read.csv(url_wine,header = F,sep=",")
+colnames(wine_df) <- c("Class","Alcohol","Malic_acid","Ash","Alcalinity_of_ash","Magnesium","Total_phenols","Flavanoids","Nonflavanoid_phenols","Proanthocyanins","Color_intensity","Hue","OD280/OD315_of_diluted_wines","Proline")
+head(wine_df)
+```
+
+Since the feature attributes are of different scales the data needs to be scaled.
+
+```{r}
+pca <- prcomp(scale(wine_df[,2:14]))
+pca
+```
+
+
+```{r}
+names(pca)
+```
+
+```{r}
+pca$sdev
+```
+
+```{r}
+pca$rotation <- -pca$rotation
+pca$rotation 
+```
+
+```{r}
+pca$x <- -pca$x
+head(pca$x)
+```
+
+#### Biplot
+
+```{r}
+biplot(pca, scale=0)
+```
+
+The Feature which lies in the opposite direction to the Hue feature is Malic_acid in the rotated pCA axis.
+
+```{r}
+pairs.panels(wine_df[,c(3,12)])
+```
+
+From the above figure we can infer that HUE and Malic_Acid are negatively corellated in the original data set with r = -0.56. So as Hue increases, malic_acid decreases. The same can be infered from the rotated pca axis where both lie in the opposite direction.
+
+
+```{r}
+summary(pca)
+screeplot(pca,type = 'l')
+```
+
+Variance explained by PC1 is 0.362 and PC2 is 0.1921. So the total(cumulative) variance explained by PC1 and PC2 is 0.5541.
+
+
+## Problem 2.2
+
+### Kmeans - Partitional Clustering:
+
+```{r}
+data(USArrests)
+head(USArrests)
+```
+
+We need to scale the data as the features are of different scales.
+
+```{r}
+USArrests <- scale(USArrests)
+head(USArrests)
+fviz_nbclust(USArrests, kmeans, method="wss")
+```
+
+```{r}
+arrest_2 <- kmeans(USArrests,centers=2)
+fviz_cluster(arrest_2, data=USArrests, main="USArrests with centers 2")
+```
+
+```{r}
+arrest_3 <- kmeans(USArrests,centers=3)
+fviz_cluster(arrest_3, data=USArrests, main="USArrests with centers 3")
+```
+
+```{r}
+arrest_4 <- kmeans(USArrests,centers=4)
+fviz_cluster(arrest_4, data=USArrests, main="USArrests with centers 4")
+```
+
+```{r}
+arrest_5 <- kmeans(USArrests,centers=5)
+fviz_cluster(arrest_5, data=USArrests, main="USArrests with centers 5")
+```
+
+```{r}
+arrest_6 <- kmeans(USArrests,centers=6)
+fviz_cluster(arrest_6, data=USArrests, main="USArrests with centers 6")
+```
+```{r}
+arrest_7 <- kmeans(USArrests,centers=7)
+fviz_cluster(arrest_7, data=USArrests, main="USArrests with centers 7")
+```
+
+```{r}
+arrest_8 <- kmeans(USArrests,centers=8)
+fviz_cluster(arrest_8, data=USArrests, main="USArrests with centers 8")
+```
+
+```{r}
+arrest_9 <- kmeans(USArrests,centers=9)
+fviz_cluster(arrest_9, data=USArrests, main="USArrests with centers 9")
+```
+
+```{r}
+arrest_10 <- kmeans(USArrests,centers=10)
+fviz_cluster(arrest_10, data=USArrests, main="USArrests with centers 10")
+```
+
+#### Choosing optimal clustring of 4 as the slope dosen't vary much after k=4. There is minimal decrease in Total within sum of squares after k=4.
+
+#### Optimal Clustering K=4
+
+```{r}
+arrest_4 <- kmeans(USArrests,centers=4)
+fviz_cluster(arrest_4, data=USArrests, main="USArrests with centers 4")
+```
+
+
+## Problem 2.3
+
+### Hierarchial Clustering:
+
+```{r}
+url_Wine_quality <- "https://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv"
+data_wine_quality <- read.csv(url_Wine_quality,header = T,sep=";")
+```
+
+```{r}
+head(data_wine_quality[,1:11])
+```
+
+We need to scale the data as the features are in different scales.
+
+#### Complete Linkage: 
+
+```{r}
+Scale_df_wine_quality <- scale(data_wine_quality[,1:11])
+hc.complete <- hclust(dist(Scale_df_wine_quality), method="complete")
+plot(hc.complete,main = "Complete Linkage Dendogram",xlab = "Wine_quality observations")
+```
+
+#### Single Linkage: 
+
+```{r}
+hc.single <- hclust(dist(Scale_df_wine_quality), method="single")
+plot(hc.single,main = "Single Linkage Dendogram",xlab = "Wine_quality observations")
+```
+
+```{r}
+names(hc.single)
+options("digits"=4)
+```
+
+
+```{r}
+tail(hc.single$height,n=1)
+tail(hc.complete$height,n=1)
+```
+
+From the above results we can see that the penultimate clusters are merged at a height of 14.25 and 27.73 for single and complete linkage methods.
+
+```{r}
+H_complete_cut<- cutree(hc.complete,2)
+table(H_complete_cut)
+```
+
+```{r}
+H_single_cut<- cutree(hc.single,2)
+table(H_single_cut)
+```
+
+```{r}
+data_wine_quality$Clusters <- H_single_cut
+data_wine_quality <- dplyr::group_by(data_wine_quality,Clusters)
+single_summary <- dplyr::summarise_each(data_wine_quality, funs(mean))
+print.data.frame(single_summary)
+```
+
+```{r}
+data_wine_quality$Clusters <- H_complete_cut
+data_wine_quality <- dplyr::group_by(data_wine_quality,Clusters)
+complete_summary <- dplyr::summarise_each(data_wine_quality, funs(mean))
+print.data.frame(complete_summary)
+```
+
+Residual.sugar feature has the largest cluster mean difference as observed from the above results.
+
+From the above results and Dendogram graphs we can say that Complete Linkage method dendogram is much more balanced than the Single Linkage Dendogram.

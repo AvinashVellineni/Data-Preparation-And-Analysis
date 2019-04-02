@@ -1,0 +1,151 @@
+---
+title: "CSP 571 - Data Preparation & Analysis"
+output: html_notebook
+author: "Avinash Vellineni"
+---
+
+Problem 2.1:
+
+Loading Iris Dataset :
+
+```{r}
+data(iris) #Loading the inbuilt Iris dataset
+head(iris) #Printing first 6 observations.
+```
+
+
+Boxplot of each of the 4 features :
+
+```{r}
+boxplot(iris$Sepal.Length,data=iris,main="Sepal Length")
+print(IQR(iris$Sepal.Length))
+```
+
+```{r}
+boxplot(iris$Sepal.Width,data=iris,main="Sepal Width")
+print(IQR(iris$Sepal.Width))
+```
+
+
+```{r}
+boxplot(iris$Petal.Length,data=iris,main="Petal Length")
+print(IQR(iris$Petal.Length))
+```
+
+```{r}
+boxplot(iris$Petal.Width,data=iris,main="Petal Width")
+print(IQR(iris$Petal.Width))
+```
+
+Conclusion : Petal length has the largest IQR  among 4 features.
+
+Standard Deviation for four Features:
+
+```{r}
+print(sd(iris$Sepal.Length,na.rm = F))
+print(sd(iris$Sepal.Width,na.rm = F))
+print(sd(iris$Petal.Length,na.rm = F))
+print(sd(iris$Petal.Width,na.rm = F))
+```
+
+Yes the results from the standard deviation for the four features agree with the empirical values.
+
+Colored boxplot for four features using ggplot2 library.
+
+```{r}
+library(tidyverse)
+ggplot(data = iris) + geom_boxplot(mapping = aes(x = Species, y = Sepal.Length, color = Species))
+ggplot(data = iris) + geom_boxplot(mapping = aes(x = Species, y = Sepal.Width, color = Species))
+ggplot(data = iris) + geom_boxplot(mapping = aes(x = Species, y = Petal.Length, color = Species))
+ggplot(data = iris) + geom_boxplot(mapping = aes(x = Species, y = Petal.Width, color = Species))
+
+```
+
+```{r}
+ggplot(data = iris) + geom_boxplot(mapping = aes(x= Species,y = iris$Petal.Length/iris$Petal.Width, color = Species)) + labs(x="Separated By Species",y="Petal_Length / Pertal_Width")
+```
+
+Flower Type "Setosa" exhibits a significantly different PetalLength/Width once it is separated from the other classes.
+
+
+Problem 2.2:
+
+Loading the tree dataset and summary of each features:
+
+```{r}
+data(trees)
+summary(trees)
+```
+
+```{r}
+#Right skewed
+hist(trees$Girth,xlab = "Girth",ylab = "Frequency",main="Histogram of Girth")
+#normal skewed
+hist(trees$Height,xlab = "Height",ylab = "Frequency",main="Histogram of Height")
+#Right skewed
+hist(trees$Volume,xlab = "Volume",ylab = "Frequency",main="Histogram of Volume")
+```
+
+
+"Height" feature in tree dataset appears to be normally distributed based on visual inspection.
+
+
+```{r}
+library(moments)
+
+skewness(trees$Girth)
+skewness(trees$Height)
+skewness(trees$Volume)
+
+```
+
+Variables -> "Grith" and "Volume" are positively skewed.
+
+Variable -> "Height" is negatively skewed.
+
+Yes the results agree with the visual inspection.But on visual inspection the Feature "Height" appears to be normally distributed but it is slightly negatively skewed based on the observed skewness values for all the variables.
+
+
+Problem 2.3:
+
+Loading the auto-mpg dataset from the uci machine learning repository.
+
+```{r}
+url_auto_mpg <- "https://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data"
+
+data_auto_mpg <- read.csv(url_auto_mpg,as.is = F,sep="",header = T)
+head(data_auto_mpg) # first six observations in the auto-mpg dataset.
+```
+
+Using as.numeric casting function to obtain the column "Horsepower"(X130.0) as a numeric
+vector, and replacing all NA values with the median.
+
+```{r}
+data_auto_mpg$X130.0<- suppressWarnings(as.numeric(as.character(data_auto_mpg$X130.0)))
+median_value <- median(data_auto_mpg$X130.0,na.rm = T)
+median_value
+```
+
+Original mean excluding NA Values:
+
+```{r}
+original_mean_exclude_na <- mean(dataauto$X130.0,na.rm = TRUE)
+original_mean_exclude_na
+```
+
+Replacing NA values with the median in the "Horsepower" Feature
+
+```{r}
+data_auto_mpg$X130.0[which(is.na(data_auto_mpg$X130.0))] <- median_value
+```
+
+New Mean after repacing NA values with the median:
+
+```{r}
+New_mean <- mean(data_auto_mpg$X130.0)
+New_mean
+Difference <- original_mean_exclude_na - New_mean
+Difference
+```
+
+Since the difference between the original and the new mean is 0.17 its very small.So we dont have much of an effect when the records with the NA values were ignored.

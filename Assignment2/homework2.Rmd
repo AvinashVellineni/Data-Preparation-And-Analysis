@@ -1,0 +1,327 @@
+---
+title: "DPA Homework2"
+output: html_notebook
+author: Avinash Vellineni
+---
+
+### Problem 2.1
+
+```{r}
+rm(list=ls())
+```
+
+
+```{r}
+library("MASS")
+library(tidyverse)
+library(psych)
+library("moments")
+library(caret)
+library(corrplot)
+library(rpart)
+library(rpart.plot)
+library(ROCR)
+library("e1071")
+```
+
+Loading Boston dataset
+
+```{r}
+setwd("E:/IIT CHICAGO STUDIES/IIT Chicago semester 2/Data Prep and Analysis/Assignment/Assignment2")
+head(Boston)
+dim(Boston)
+str(Boston)
+```
+
+Checking correlation among predictors and features.
+
+```{r}
+Str_corr <- cor(cbind(Boston$crim,Boston$zn,Boston$indus,Boston$chas,Boston$nox,Boston$rm,Boston$age,Boston$dis,Boston$rad,Boston$tax,Boston$ptratio,Boston$black,Boston$lstat,Boston$medv))
+Str_corr[,14]
+pairs.panels(Boston[,c(13,14)])
+```
+
+Linear Model
+
+```{r}
+Linear_model <- lm(medv~lstat,data = Boston)
+summary(Linear_model)
+anova(Linear_model)
+```
+
+Fitted vs The residual plot
+
+```{r}
+plot(Linear_model,1)
+```
+
+
+
+From the fitted values vs the residual plot we can see a slightly U shaped line (i.e) 
+
+The residuals for the small and high values are positive while the middle values have residuals in negative value.
+
+This shows that that there is some  non-linearity in the data. Note: the red line in the graph is not a perfect straight line.
+
+Correlation plot between the response and the predictor.
+
+```{r}
+ggplot(Boston, aes(x = lstat, y = medv)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+
+```
+
+From the predictor vs response plot we can infer that as the medv attribute increases lstat attribute decreases.
+
+Histogram of the residual plot
+
+```{r}
+hist(Linear_model$residuals, xlab = "Model Residuals", 
+     main="Boston Residual Histogram") 
+skewness(Linear_model$residuals)
+names(Boston)
+```
+
+Prediction intervals
+
+```{r}
+predict_values <- predict(Linear_model,data.frame(lstat = c(5, 10, 15)), interval="prediction")
+predict_values
+summary(predict_values)
+```
+
+Confidence intervals
+
+```{r}
+confi_value <- predict(Linear_model,data.frame(lstat = c(5, 10, 15)), interval="confidence")
+confi_value
+```
+
+Fitvalues of the confidence and the prediction values are the same. For lstat value of five.
+
+The fit value of prediction interval is 29.80359 and the range of values are [17.565675,42.04151].
+
+The fit value of Confidence interval is 29.80359 and the range of values are [29.00741,30.59978].
+
+From the results we can see that confidence interval has a tight bound around the fit values than the prediction interval.
+
+Multilinear regression
+```{r}
+lstat_2<-Boston$lstat*Boston$lstat
+New_Linear_model <- lm(medv~lstat+lstat_2,data = Boston)
+summary(New_Linear_model)
+ggplot(Boston, aes(x = lstat_2, y = medv)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+ggplot(Boston, aes(x = lstat+lstat_2, y = medv)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red")
+```
+
+Residual vs fittedvalues plot
+
+```{r}
+
+plot(New_Linear_model,1)
+```
+
+R2 for the non-linear fit is higher than the linear fit model.
+
+The non-linear model has captured more variance than the linear model.
+
+Now the line is almost close to linear data is evenly shared on the poisitive and negative side of the residuals.
+
+```{r}
+anova(Linear_model,New_Linear_model)
+```
+
+From the anova results we can see that the model1 has higher RSS value (i.e) the data points lie far away from the model1 than model2.
+
+
+### Problem 2.2
+
+Loading the Abalone Dataset
+
+```{r}
+url_abalone <- "https://archive.ics.uci.edu/ml/machine-learning-databases/abalone/abalone.data"
+df_abalone <- read.csv(url_abalone,sep = ",",header = F)
+head(df_abalone)
+names(df_abalone) <- c("Sex","Length","Diameter","Height","Whole_weight","Shucked_weight","Viscera_weight","Shell_weight","Rings")
+head(df_abalone)
+```
+
+Removal  of Observations of Infant category.
+
+```{r}
+sum(df_abalone$Sex == "I")
+rm_index = which(df_abalone$Sex == "I")
+Updated_df_abalone <- df_abalone[-rm_index,]
+Updated_df_abalone$Sex <- factor(Updated_df_abalone$Sex, labels = c("M","F"))
+head(Updated_df_abalone)
+str(Updated_df_abalone)
+```
+
+```{r}
+part_train <- createDataPartition(Updated_df_abalone$Sex, p = 0.8,list = F)
+train_ab <- Updated_df_abalone[part_train,]
+test_ab <- Updated_df_abalone[-part_train,]
+```
+
+
+Logistic regression
+
+```{r}
+glm_ab <- glm(Sex~.,data = train_ab,family = binomial)
+summary(glm_ab)
+```
+
+Since the p value of Shucked_weight is very low compared to the other predictors followed by Distance feature they are significant predictors and should not be discarded.
+
+```{r}
+confi_ab <- predict(glm_ab,test_ab, interval="confidence")
+head(confi_ab)
+summary(confi_ab)
+```
+
+Yes, the confidence interval has zero within its range of values. If the modal coefficients are close to zero or the p value is hight > 5% usually then it will satisfy the null hypothesis. If the p value is less than 0.05 then the confidence interval will not contain the null hypothesis value.They are related to standard errors (i.e) how much the predicted values deviate from the actual values.
+
+```{r}
+response_glm <- predict(glm_ab,test_ab, type = "response")
+predict_glm <- ifelse(response_glm > 0.5, "F", "M")
+head(predict_glm)
+head(test_ab$Sex)
+confusionMatrix(predict_glm, test_ab$Sex)
+```
+
+
+```{r}
+pred.rocr <- predict(glm_ab, newdata=test_ab, type="response")
+f.pred <- prediction(pred.rocr, test_ab$Sex)
+f.perf <- performance(f.pred, "tpr", "fpr")
+plot(f.perf, colorize=T, lwd=3)
+abline(0,1)
+auc <- performance(f.pred, measure = "auc")
+cat(paste("The area under curve (AUC) for this model is ", round(auc@y.values[[1]], 3)))
+```
+
+```{r}
+pairs.panels(Updated_df_abalone)
+```
+
+rpart classifier
+
+```{r}
+
+roc_model <- rpart(Sex ~ ., method="class", data=train_ab)
+rpart.plot(roc_model, extra=104, fallen.leaves = T, type=4, main="Rpart on Abalone Data set")
+summary(roc_model)
+predict_test_ab <- predict(roc_model, test_ab, type="class")
+head(predict_test_ab)
+head(test_ab$Sex)
+cm_ab <- confusionMatrix(predict_test_ab, test_ab$Sex)
+cm_ab
+pred.rocr1 <- predict(roc_model, newdata=test_ab, type="prob")[,2]
+f.pred1 <- prediction(pred.rocr1, test_ab$Sex)
+f.perf1 <- performance(f.pred1, "tpr", "fpr")
+plot(f.perf1, colorize=T, lwd=3)
+abline(0,1)
+auc1 <- performance(f.pred1, measure = "auc")
+cat(paste("The area under curve (AUC) for this model is ", round(auc1@y.values[[1]], 3)))
+```
+
+```{r}
+cor_plot = cor(Updated_df_abalone[2:9])
+corrplot(cor_plot)
+corrplot(cor_plot, method="number")
+```
+
+
+Selecting predictors and using glm model 
+
+```{r}
+glm_ab2 <- glm(Sex~Diameter+Shucked_weight,data = train_ab,family = binomial)
+summary(glm_ab2)
+confi_ab2 <- predict(glm_ab2,test_ab, interval="confidence")
+summary(confi_ab2)
+response_glm2 <- predict(glm_ab2,test_ab, type = "response")
+predict_glm2 <- ifelse(response_glm2 > 0.5, "F", "M")
+confusionMatrix(predict_glm2, test_ab$Sex)
+pred.rocr2 <- predict(glm_ab2, newdata=test_ab, type="response")
+f.pred2 <- prediction(pred.rocr2, test_ab$Sex)
+f.perf2 <- performance(f.pred2, "tpr", "fpr")
+plot(f.perf2, colorize=T, lwd=3)
+abline(0,1)
+auc2 <- performance(f.pred2, measure = "auc")
+cat(paste("The area under curve (AUC) for this model is ", round(auc2@y.values[[1]], 3)))
+```
+
+Compared to the model1 with all the predictors the rpart decision tree and the model with two predictors has a higher area under the curve but the curve lies below the 50% probability line which tell us that model is not so good. Usually area under the curve should be close to 1 for the predictions to be accurate.
+
+### problem 2.3
+
+
+```{r}
+url_mushroom <- "https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data"
+df_mushroom <- read.csv(url_mushroom,sep = ",",header = F)
+head(df_mushroom)
+names(df_mushroom) <- c('Edible_Poison','Cap_shape','cap_surface','cap_color','bruises','odor','gill_attachment','gill_spacing','gill_size','gill_color','stalk_shape','stalk_root','stalk_surface_above_ring','stalk_surface_below_ring','stalk_color_above_ring','stalk_color_below_ring','veil_type','veil_color','ring_number','ring_type','spore_print_color','population','habitat')
+head(df_mushroom)
+sum(df_mushroom$stalk_root == "?")
+```
+
+
+```{r}
+index_nb <- sample(1:nrow(df_mushroom), size=0.2*nrow(df_mushroom))
+test_nb <- df_mushroom[index_nb, ]
+train_nb <- df_mushroom[-index_nb, ]
+NaiveBayes_Classifier <- naiveBayes(x=train_nb[-1],y=train_nb$Edible_Poison)
+summary(NaiveBayes_Classifier)
+predictor_nb <- predict(NaiveBayes_Classifier, newdata = test_nb[-1])
+head(predictor_nb)
+head(test_nb$Edible_Poison)
+table(predictor_nb,test_nb$Edible_Poison)
+cm_nb <- confusionMatrix(predictor_nb,test_nb$Edible_Poison)
+cm_nb
+```
+
+Number of false positives observed is 104 and the accuracy of the model prediction is 0.9317.
+
+Predicting the response value of the train dataset using the model obtained from train dataset.
+
+```{r}
+predictor_nb_train <- predict(NaiveBayes_Classifier, newdata = train_nb[-1])
+table(predictor_nb_train,train_nb$Edible_Poison)
+cm_nb_train <- confusionMatrix(predictor_nb_train,train_nb$Edible_Poison)
+cm_nb_train
+```
+
+Accuracy for the classifier on the train and the test dataset almost the same (0.9317,0.9412).
+
+removing rows where ? is present  and again constructing the model
+
+```{r}
+dim(df_mushroom)
+index_neg <- which(df_mushroom$stalk_root == "?")
+new_df_mushroom <- df_mushroom[-index_neg,]
+index_nb_n <- sample(1:nrow(new_df_mushroom), size=0.2*nrow(new_df_mushroom))
+test_nb_n <- new_df_mushroom[index_nb_n, ]
+train_nb_n <- new_df_mushroom[-index_nb_n, ]
+NaiveBayes_Classifier_n <- naiveBayes(x=train_nb_n[-1],y=train_nb_n$Edible_Poison)
+predictor_nb_n <- predict(NaiveBayes_Classifier_n, newdata = test_nb_n[-1])
+cm_nb_n <- confusionMatrix(predictor_nb_n,test_nb_n$Edible_Poison)
+cm_nb_n
+```
+
+
+```{r}
+head(predictor_nb_n)
+head(test_nb_n$Edible_Poison)
+table(predictor_nb_n,test_nb_n$Edible_Poison)
+```
+
+The number of false positives after the rows containing ? values removed are 51.
+
+Accuracy of the classifier after the removal of the rows containing ? is slightly (1-2%) higher than the classifier containing all the observations.  
+
+
